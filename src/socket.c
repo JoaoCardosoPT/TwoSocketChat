@@ -1,5 +1,8 @@
+#include "../include/socket.h"
 #include <arpa/inet.h>
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 
@@ -24,7 +27,7 @@ struct in_adr {
   unsigned short s_addr;
 };
 
-int main() {
+int connection(void) {
   struct socketels sockel;
   struct sockaddr_in my_addr;
 
@@ -32,11 +35,31 @@ int main() {
   my_addr.sin_port = htons(MYPORT);
 
   int sockfd;
+  int backlog = 128;
 
   sockfd = socket(PF_INET, SOCK_STREAM, 0);
-  inet_aton("10.0.0.5", &my_addr.sin_addr);
+
+  if (sockfd == -1) {
+    err(EXIT_FAILURE, "socket");
+  }
+
+  inet_aton("127.0.0.1", &my_addr.sin_addr);
 
   memset(&my_addr.sin_zero, '\0', 8);
 
+  if (bind(sockfd, (struct sockaddr *)&my_addr, sizeof(struct sockaddr)) ==
+      -1) {
+    err(EXIT_FAILURE, "bin");
+  }
+
+  listen(sockfd, backlog);
+
+  if (listen(sockfd, backlog)) {
+    printf("Errors Listening");
+    return -1;
+  }
+
   printf("IP: %s\n", inet_ntoa(my_addr.sin_addr));
+
+  return sockfd;
 }
