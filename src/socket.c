@@ -26,6 +26,7 @@ int connection(void) {
   if (sockfd == -1) {
     err(EXIT_FAILURE, "socket");
   }
+
   // each arguments specifies a term, 8 means the number of bytes to set
   memset(&my_addr.sin_zero, '\0', 8);
 

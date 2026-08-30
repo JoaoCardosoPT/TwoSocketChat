@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,38 +13,44 @@
 
 #include "../include/chat.h"
 
+struct Client {
+  char username[100];
+  bool has_username;
+};
+
 void start_chat(int server_fd) {
+  // array of structures used by poll
   struct pollfd fds[2];
-  int client1;
-  int client2;
+  // Initalize every field to zero
+  struct Client clients[2] = {0};
 
   struct sockaddr_in client_adrr;
   // socklen_t     msg_namelen     size of address
   socklen_t client_len = sizeof(client_adrr);
 
   // listening socket // client info // size of structure
-  client1 = accept(server_fd, (struct sockaddr *)&client_adrr, &client_len);
-
-  if (client1 == -1) {
+  fds[0].fd = accept(server_fd, (struct sockaddr *)&client_adrr, &client_len);
+  if (fds[0].fd == -1) {
     err(EXIT_FAILURE, "accept \n");
   }
+  const char *userask = "Choose an Username ";
+  send(fds[0].fd, userask, strlen(userask), 0);
 
   printf("client 1 connected \n");
 
-  client2 = accept(server_fd, (struct sockaddr *)&client_adrr, &client_len);
+  fds[1].fd = accept(server_fd, (struct sockaddr *)&client_adrr, &client_len);
+  send(fds[1].fd, userask, strlen(userask), 0);
 
-  if (client2 == -1) {
+  if (fds[1].fd == -1) {
     err(EXIT_FAILURE, "accept");
   }
 
   printf("client 2 connected \n");
 
   // fds stores the sockets tha poll needs to whatch
-  fds[0].fd = client1;
   fds[0].events = POLLIN;
   fds[0].revents = 0;
 
-  fds[1].fd = client2;
   fds[1].events = POLLIN;
   fds[1].revents = 0;
 
@@ -78,11 +85,25 @@ void start_chat(int server_fd) {
         ssize_t received = recv(fds[i].fd, buffer, sizeof(buffer) - 1, 0);
 
         if (received > 0) {
-          send(fds[destination].fd, buffer, received, 0);
+          if (clients[i].has_username == false) {
+            int tocopy = received;
+
+            if (tocopy > 99) {
+              err(EXIT_FAILURE, "username");
+            }
+
+            memcpy(clients[i].username, buffer, tocopy);
+            clients[i].username[tocopy] = '\0';
+
+            printf("Welcome: \n%s", clients[i].username);
+            clients[i].has_username = true;
+          } else {
+            send(fds[destination].fd, buffer, received, 0);
+          }
         } else if (received == 0) {
           printf("Client %d disconnected", i + 1);
-          close(client1);
-          close(client2);
+          close(fds[0].fd);
+          close(fds[1].fd);
 
           return;
         } else {
