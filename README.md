@@ -2,6 +2,10 @@
 
 It is a simple two-client TCP chat server written in C.
 
+## Features 
+
+- Choose custom username
+
 ## How It Works
 
 The server listens for connections on:
