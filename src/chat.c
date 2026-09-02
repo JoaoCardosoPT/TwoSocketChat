@@ -36,7 +36,18 @@ void start_chat(int server_fd) {
   const char *userask = "Choose an Username ";
   send(fds[0].fd, userask, strlen(userask), 0);
 
-  printf("client 1 connected \n");
+  printf("Client connected \n");
+
+  ssize_t received = recv(fds[0].fd, clients[0].username, sizeof(clients[0].username) - 1, 0);
+
+  if (received > 0) {
+      clients[0].username[received] = '\0';
+      clients[0].username[strcspn(clients[0].username, "\r\n")] = '\0';
+
+      clients[0].has_username = true;
+
+      printf("Username set to %s\n", clients[0].username);
+  }
 
   fds[1].fd = accept(server_fd, (struct sockaddr *)&client_adrr, &client_len);
   send(fds[1].fd, userask, strlen(userask), 0);
@@ -45,7 +56,7 @@ void start_chat(int server_fd) {
     err(EXIT_FAILURE, "accept");
   }
 
-  printf("client 2 connected \n");
+  printf("Client connected \n");
 
   // fds stores the sockets tha poll needs to whatch
   fds[0].events = POLLIN;
@@ -59,8 +70,6 @@ void start_chat(int server_fd) {
   int timeout = -1;
 
   while (1) {
-    printf("Waiting for responses \n");
-
     int rc = poll(fds, nfds, timeout);
 
     if (rc == -1) {
@@ -78,7 +87,6 @@ void start_chat(int server_fd) {
     for (nfds_t i = 0; i < nfds; i++) {
       char buffer[1024];
       if (fds[i].revents & POLLIN) {
-        printf("Client %d as data Available\n", i + 1);
         int destination = 1 - i;
 
         // the -1 means the recv reads 1023 bytes and lets the last byte free
@@ -95,8 +103,18 @@ void start_chat(int server_fd) {
             memcpy(clients[i].username, buffer, tocopy);
             clients[i].username[tocopy] = '\0';
 
-            printf("Welcome: \n%s", clients[i].username);
             clients[i].has_username = true;
+
+
+            printf("Username set to %s", clients[i].username);
+
+
+            char message[60];
+            // creates a formated text and stores it in a char array
+            int show_user = snprintf(message, sizeof(message),
+                                     "%s connected", clients[i].username);
+            send(fds[i].fd, message, (size_t)message, 0);
+
           } else {
             send(fds[destination].fd, buffer, received, 0);
           }
